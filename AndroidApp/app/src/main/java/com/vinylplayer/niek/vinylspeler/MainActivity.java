@@ -1,5 +1,7 @@
 package com.vinylplayer.niek.vinylspeler;
 
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -20,7 +22,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity
-        implements SpotifyPlayer.NotificationCallback, ConnectionStateCallback {
+        implements SpotifyPlayer.NotificationCallback, ConnectionStateCallback, BluetoothLeUart.Callback {
 
     private static final String CLIENT_ID = "f93d2ff389604712ac75b53e739a1a02";
     private static final String REDIRECT_URI = "vinyl://spotify";
@@ -30,6 +32,8 @@ public class MainActivity extends AppCompatActivity
     private TextView statusText;
     private Button songOne;
     private Button songTwo;
+    private Button connect;
+    private BluetoothLeUart uart;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +46,8 @@ public class MainActivity extends AppCompatActivity
         AuthenticationClient.openLoginActivity(this, REQUEST_CODE, request);
 
         setContentView(R.layout.activity_main);
+
+        uart = new BluetoothLeUart(getApplicationContext());
 
         setUI();
     }
@@ -62,8 +68,22 @@ public class MainActivity extends AppCompatActivity
                 mPlayer.playUri(null, "spotify:track:3FmAUR4SPWa3P1KyDf21Fu", 0, 0);
             }
         });
+    }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d("MainActivity", "Scanning for devices ...");
+        uart.registerCallback(this);
+        uart.connectFirstAvailable();
+    }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.d("MainActivity", "Disconnecting ...");
+        uart.unregisterCallback(this);
+        uart.disconnect();
     }
 
     @Override
@@ -149,5 +169,45 @@ public class MainActivity extends AppCompatActivity
             default:
                 break;
         }
+    }
+
+    @Override
+    public void onConnected(BluetoothLeUart uart) {
+        Log.d("MainActivity", "Connected to Uart device");
+    }
+
+    @Override
+    public void onConnectFailed(BluetoothLeUart uart) {
+        Log.d("MainActivity", "Connection failed to Uart device");
+    }
+
+    @Override
+    public void onDisconnected(BluetoothLeUart uart) {
+        Log.d("MainActivity", "Disconnected from Uart device");
+    }
+
+    @Override
+    public void onReceive(BluetoothLeUart uart, BluetoothGattCharacteristic rx) {
+        Log.d("MainActivity", rx.getStringValue(0));
+        switch(rx.getStringValue(0)){
+            case "1":
+                mPlayer.playUri(null, "spotify:track:5C0LFQARavkPpn7JgA4sLk", 0, 0);
+                break;
+            case "2":
+                mPlayer.playUri(null, "spotify:track:3FmAUR4SPWa3P1KyDf21Fu", 0, 0);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void onDeviceFound(BluetoothDevice device) {
+        Log.d("MainActivity", device.getAddress());
+    }
+
+    @Override
+    public void onDeviceInfoAvailable() {
+        Log.d("MainActivity", uart.getDeviceInfo());
     }
 }
