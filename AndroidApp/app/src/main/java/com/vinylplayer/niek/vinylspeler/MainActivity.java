@@ -1,5 +1,6 @@
 package com.vinylplayer.niek.vinylspeler;
 
+import android.Manifest;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
@@ -32,8 +33,11 @@ public class MainActivity extends AppCompatActivity
     private TextView statusText;
     private Button songOne;
     private Button songTwo;
-    private Button connect;
+    private Button spotifyButton;
+    private Button uartButton;
     private BluetoothLeUart uart;
+    private AuthenticationRequest request;
+    private MainActivity that;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,21 +45,24 @@ public class MainActivity extends AppCompatActivity
 
         AuthenticationRequest.Builder builder = new AuthenticationRequest.Builder(CLIENT_ID, AuthenticationResponse.Type.TOKEN, REDIRECT_URI);
         builder.setScopes(new String[]{"user-read-private", "streaming"});
-        AuthenticationRequest request = builder.build();
-
-        AuthenticationClient.openLoginActivity(this, REQUEST_CODE, request);
+        request = builder.build();
 
         setContentView(R.layout.activity_main);
-
+        String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION};
+        requestPermissions(permissions, 1);
         uart = new BluetoothLeUart(getApplicationContext());
+        that = this;
 
         setUI();
+
     }
 
     protected void setUI() {
         statusText = (TextView) findViewById(R.id.status_TextView);
         songOne = (Button) findViewById(R.id.song_one_button);
         songTwo = (Button) findViewById(R.id.song_two_button);
+        spotifyButton = (Button) findViewById(R.id.spotify_button);
+        uartButton = (Button) findViewById(R.id.uartbutton);
 
         songOne.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -68,14 +75,25 @@ public class MainActivity extends AppCompatActivity
                 mPlayer.playUri(null, "spotify:track:3FmAUR4SPWa3P1KyDf21Fu", 0, 0);
             }
         });
+
+        spotifyButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                AuthenticationClient.openLoginActivity(that, REQUEST_CODE, request);
+            }
+        });
+
+        uartButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Log.d("MainActivity", "Scanning for devices ...");
+                uart.registerCallback(that);
+                uart.connectFirstAvailable();
+            }
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d("MainActivity", "Scanning for devices ...");
-        uart.registerCallback(this);
-        uart.connectFirstAvailable();
     }
 
     @Override
